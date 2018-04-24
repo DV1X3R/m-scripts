@@ -33,19 +33,27 @@ public class ScriptMain : UserComponent
                     {
                         Output0Buffer.AddRow();
 
-                        if (results.Properties["givenName"].Count != 0)
-                            Output0Buffer.FirstName = results.Properties["givenName"][0].ToString();
-                        if (results.Properties["sn"].Count != 0)
-                            Output0Buffer.LastName = results.Properties["sn"][0].ToString();
-                        if (results.Properties["sAMAccountName"].Count != 0)
-                            Output0Buffer.UserLogin = results.Properties["sAMAccountName"][0].ToString();
-
+                        Output0Buffer.FirstName = GetProperty(sr, "givenName");
+                        Output0Buffer.LastName = GetProperty(sr, "sn");
+                        Output0Buffer.UserLogin = GetProperty(sr, "sAMAccountName");
+                        Output0Buffer.UserMail = GetProperty(sr, "mail");
+                        Output0Buffer.UserAdPath = GetProperty(sr, "DistinguishedName");
+                        Output0Buffer.UserDomainName = GetProperty(sr, "UserPrincipalName");
                         Output0Buffer.UserGroupName = groupDN.Substring(3, (groupDN.IndexOf(',') - 3));
+                        Output0Buffer.UserGroupAdPath = groupDN;
+                        
                     }
                 }
             }
 
         }
+    }
+    
+    public string GetProperty(SearchResult sr, string propertyName)
+    {
+        if (sr.Properties[propertyName].Count != 0)
+            return sr.Properties[propertyName][0].ToString();
+        else return null;
     }
 
 }

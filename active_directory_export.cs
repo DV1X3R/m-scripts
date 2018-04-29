@@ -103,7 +103,7 @@ public class ScriptMain : UserComponent
         DirectorySearcher ds = new DirectorySearcher();
         ds.Filter = string.Format("(&(memberOf:1.2.840.113556.1.4.1941:={0})(objectCategory=person)(objectClass=user)(sAMAccountName={1}))", groupDistinguishedName, sAMAccountName);
         SearchResult src = ds.FindOne();
-        return !(src == null);
+        return src != null;
     }
 
 }

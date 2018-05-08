@@ -7,7 +7,6 @@ public class ScriptMain : UserComponent
 {
     public override void CreateNewOutputRows()
     {
-
         using (DirectorySearcher ds = new DirectorySearcher())
         {
             //ds.SearchRoot = new DirectoryEntry("LDAP://");

@@ -7,15 +7,54 @@ public class ScriptMain : UserComponent
 {
     public override void CreateNewOutputRows()
     {
-        using (DirectorySearcher ds = new DirectorySearcher()) //"LDAP://"
-        {
-            var userGroups = new List<string>() { "*" };
-            var userGroupsDN = new List<string>();
+        var objdomain = new DirectoryEntry();
 
+        using (DirectorySearcher ds = new DirectorySearcher())
+        {
+            //ds.SearchRoot = new DirectoryEntry("LDAP://");
             ds.SearchScope = SearchScope.Subtree;
             ds.PageSize = 100000; // This will page through the records 1000 at a time
 
-            // Select all the DistinguishedNames for selected groups 
+            // Select all the users
+            ds.Filter = "(&(objectCategory=User))";
+            using (SearchResultCollection src = ds.FindAll())
+            {
+                foreach (SearchResult sr in src)
+                {
+                    Output0Buffer.AddRow();
+                    Output0Buffer.FirstName = GetStringProperty(sr, "givenName");
+                    Output0Buffer.LastName = GetStringProperty(sr, "sn");
+                    string userLogin = GetStringProperty(sr, "sAMAccountName");
+                    Output0Buffer.UserLogin = userLogin;
+                    Output0Buffer.UserMail = GetStringProperty(sr, "mail");
+                    Output0Buffer.UserDomainName = GetStringProperty(sr, "userPrincipalName");
+                    Output0Buffer.UserAdPath = GetStringProperty(sr, "distinguishedName");
+
+                    Output0Buffer.Company = GetStringProperty(sr, "company");
+                    Output0Buffer.Description = GetStringProperty(sr, "description");
+                    Output0Buffer.DisplayName = GetStringProperty(sr, "displayName");
+                    Output0Buffer.EmployeeNr = GetStringProperty(sr, "employeeNumber");
+                    Output0Buffer.EmployeeID = GetStringProperty(sr, "employeeID");
+
+                    Output0Buffer.LastLogon = GetFileTimeProperty(sr, "lastLogon");
+                    Output0Buffer.AccountExpires = GetFileTimeProperty(sr, "accountExpires");
+                    Output0Buffer.WhenCreated = GetStringProperty(sr, "whenCreated");
+                    Output0Buffer.UserAccountControl = IsActiveAccount(sr);
+
+                    Output0Buffer.Department = GetStringProperty(sr, "department");
+                    Output0Buffer.Manager = GetStringProperty(sr, "manager");
+                    Output0Buffer.Mobile = GetStringProperty(sr, "mobile");
+                    Output0Buffer.Title = GetStringProperty(sr, "title");
+
+                    Output0Buffer.ObjectGUID = GetObjectGUID(sr);
+                    Output0Buffer.IsCiberEmployee = GetStringProperty(sr, "distinguishedName").IndexOf(",OU=Ciber,") > 0 ? true : false;
+                }
+            }
+
+            // Select the group names
+            var userGroups = new List<string>() { "*" };
+            var userGroupsDN = new List<string>();
+
             foreach (string group in userGroups)
             {
                 ds.Filter = "(&(objectCategory=Group)(cn=" + group + "))";
@@ -31,40 +70,14 @@ public class ScriptMain : UserComponent
                 {
                     foreach (SearchResult sr in src)
                     {
-                        Output0Buffer.AddRow();
-                        Output0Buffer.FirstName = GetStringProperty(sr, "givenName");
-                        Output0Buffer.LastName = GetStringProperty(sr, "sn");
+                        Output1Buffer.AddRow();
                         string userLogin = GetStringProperty(sr, "sAMAccountName");
-                        Output0Buffer.UserLogin = userLogin;
-                        Output0Buffer.UserMail = GetStringProperty(sr, "mail");
-                        Output0Buffer.UserDomainName = GetStringProperty(sr, "userPrincipalName");
-                        Output0Buffer.UserAdPath = GetStringProperty(sr, "distinguishedName");
-                        Output0Buffer.UserGroupName = groupDN.Substring(3, (groupDN.IndexOf(',') - 3));
-                        Output0Buffer.UserGroupAdPath = groupDN;
-
-                        Output0Buffer.Company = GetStringProperty(sr, "company");
-                        Output0Buffer.Description = GetStringProperty(sr, "description");
-                        Output0Buffer.DisplayName = GetStringProperty(sr, "displayName");
-                        Output0Buffer.EmployeeNr = GetStringProperty(sr, "employeeNumber");
-                        Output0Buffer.EmployeeID = GetStringProperty(sr, "employeeID");
-
-                        Output0Buffer.LastLogon = GetFileTimeProperty(sr, "lastLogon");
-                        Output0Buffer.AccountExpires = GetFileTimeProperty(sr, "accountExpires");
-                        Output0Buffer.WhenCreated = GetStringProperty(sr, "whenCreated");
-                        Output0Buffer.UserAccountControl = IsActiveAccount(sr);
-
-                        Output0Buffer.Department = GetStringProperty(sr, "department");
-                        Output0Buffer.Manager = GetStringProperty(sr, "manager");
-                        Output0Buffer.Mobile = GetStringProperty(sr, "mobile");
-                        Output0Buffer.Title = GetStringProperty(sr, "title");
-
-                        Output0Buffer.ObjectGUID = GetObjectGUID(sr);
-                        Output0Buffer.IsCiberEmployee = GetStringProperty(sr, "distinguishedName").IndexOf(",OU=Ciber,") > 0 ? true : false;
-
+                        Output1Buffer.UserLogin = userLogin;
+                        Output1Buffer.UserGroupName = groupDN.Substring(3, (groupDN.IndexOf(',') - 3));
+                        Output1Buffer.UserGroupAdPath = groupDN;
                     }
                 }
             }
-
         }
     }
 
@@ -98,12 +111,13 @@ public class ScriptMain : UserComponent
         else return null;
     }
 
-    private bool IsGroupMember(string groupDistinguishedName, string sAMAccountName)
+    private bool IsGroupMember(string sAMAccountName, string groupName)
     {
+        if (sAMAccountName == null) return false;
         DirectorySearcher ds = new DirectorySearcher();
-        ds.Filter = string.Format("(&(memberOf:1.2.840.113556.1.4.1941:={0})(objectCategory=person)(objectClass=user)(sAMAccountName={1}))", groupDistinguishedName, sAMAccountName);
+        ds.Filter = string.Format("(&(memberOf:1.2.840.113556.1.4.1941:={0})(objectCategory=person)(objectClass=user)(sAMAccountName={1}))", groupName, sAMAccountName);
         SearchResult src = ds.FindOne();
-        return src != null;
+        return !(src == null);
     }
 
 }

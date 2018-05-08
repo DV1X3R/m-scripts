@@ -7,7 +7,6 @@ public class ScriptMain : UserComponent
 {
     public override void CreateNewOutputRows()
     {
-        var objdomain = new DirectoryEntry();
 
         using (DirectorySearcher ds = new DirectorySearcher())
         {

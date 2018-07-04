@@ -21,7 +21,7 @@ switch($select) {
         Select-Server
         $folder = Read-Host -Prompt 'Input destination folder path'
         
-        New-Item -ItemType Directory -Path $folder
+        New-Item -ItemType Directory -Force -Path $folder
 
         $intAnswer = $a.popup("Do you want to download content from " + $server +"`nAnd put it into the " + $folder + " ?", 0,"Download content",4) 
         if($intAnswer -eq 6) { 

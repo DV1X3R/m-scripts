@@ -9,20 +9,18 @@
 
 #region Namespaces
 using System;
-using System.IO;
-using System.Security;
 using Microsoft.SharePoint.Client;
 #endregion
-			 
-namespace ST_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+namespace ST_ca3ecad38994454dbf5c83efe2dfa1d8
 {
     /// <summary>
     /// ScriptMain is the entry point class of the script.  Do not change the name, attributes,
     /// or parent of this class.
     /// </summary>
 	[Microsoft.SqlServer.Dts.Tasks.ScriptTask.SSISScriptTaskEntryPointAttribute]
-	public partial class ScriptMain : Microsoft.SqlServer.Dts.Tasks.ScriptTask.VSTARTScriptObjectModelBase
-	{
+    public partial class ScriptMain : Microsoft.SqlServer.Dts.Tasks.ScriptTask.VSTARTScriptObjectModelBase
+    {
         #region Help:  Using Integration Services variables and parameters in a script
         /* To use a variable in this script, first ensure that the variable has been added to 
          * either the list contained in the ReadOnlyVariables property or the list contained in 
@@ -82,22 +80,23 @@ namespace ST_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
          * */
         #endregion
 
-        private ClientContext GetSpContext(Uri webUri, string userName, string password)
+        private static ClientContext GetSpContext(Uri portalUrl, string userName, string password)
         {
-            var securePassword = new SecureString();
+            var securePassword = new System.Security.SecureString();
             foreach (var ch in password) securePassword.AppendChar(ch);
-            return new ClientContext(webUri) { Credentials = new SharePointOnlineCredentials(userName, securePassword) };
+            return new ClientContext(portalUrl) { Credentials = new SharePointOnlineCredentials(userName, securePassword) };
         }
 
-        private void DownloadSpFile(Web web, string fileUrl, string targetPath)
+        private static void DownloadSpFile(Web web, string fileUrl, string targetFile)
         {
             var ctx = (ClientContext)web.Context;
             ctx.ExecuteQuery();
+
             using (var fileInfo = Microsoft.SharePoint.Client.File.OpenBinaryDirect(ctx, fileUrl))
             {
-                Directory.CreateDirectory(targetPath);
-                var fileName = Path.Combine(targetPath, Path.GetFileName(fileUrl));
-                using (var fileStream = System.IO.File.Create(fileName))
+                //Directory.CreateDirectory(targetPath);
+                //var fileName = Path.Combine(targetPath, Path.GetFileName(fileUrl));
+                using (var fileStream = System.IO.File.Create(targetFile))
                 {
                     fileInfo.Stream.CopyTo(fileStream);
                 }
@@ -110,25 +109,38 @@ namespace ST_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
         /// To open Help, press F1.
         /// </summary>
         public void Main()
-		{
+        {
             // TODO: Add your code here
             string userName = Dts.Variables["$Project::MAIL_AO365"].Value.ToString();
             string password = Dts.Variables["$Project::PASSWORD_AO365"].Value.ToString();
-            string targetPath = Dts.Variables["$Project::DestinationDirPath"].Value.ToString();
-            string spUrl = Dts.Variables["$Project::SharepointFileLink"].Value.ToString();
+            string sourceUrl = Dts.Variables["$Project::Sharepoint_Link"].Value.ToString();
+            string targetFile = Dts.Variables["$Project::FlatFile_Path"].Value.ToString();
 
-            int sepIndex = spUrl.IndexOf("sharepoint.com/") + 15;
-            string portalUrl = spUrl.Substring(0, sepIndex);
-            string fileUrl = "/" + spUrl.Substring(sepIndex, spUrl.Length - portalUrl.Length);
+            int portalIndex = sourceUrl.IndexOf("sharepoint.com/") + 15;
+            string portalUrl = sourceUrl.Substring(0, portalIndex);
+            string fileUrl = "/" + sourceUrl.Substring(portalIndex, sourceUrl.Length - portalUrl.Length);
 
             using (var ctx = GetSpContext(new Uri(portalUrl), userName, password))
             {
                 var web = ctx.Web;
-                DownloadSpFile(web, fileUrl, targetPath);
+                try
+                {
+                    DownloadSpFile(web, fileUrl, targetFile);
+                    Dts.Variables["User::Sharepoint_Success"].Value = true;
+                }
+                catch (Exception e)
+                {
+                    //Console.WriteLine(e.Message); Console.ReadLine();
+                    Dts.Variables["User::Sharepoint_Error_Message"].Value = e.Message;
+                    Dts.Variables["User::Sharepoint_Success"].Value = false;
+                }
+                //catch (IdcrlException e) { } // Credentials error
+                //catch (System.Net.WebException e) { } // 404 file not found
+                //catch (UnauthorizedAccessException e) { } // File write error
             }
 
             Dts.TaskResult = (int)ScriptResults.Success;
-		}
+        }
 
         #region ScriptResults declaration
         /// <summary>
@@ -144,5 +156,5 @@ namespace ST_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
         };
         #endregion
 
-	}
+    }
 }

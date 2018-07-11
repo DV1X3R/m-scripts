@@ -1,3 +1,6 @@
+// https://www.microsoft.com/en-us/download/details.aspx?id=42038
+	// This SDK is required!
+
 #region Help:  Introduction to the script task
 /* The Script Task allows you to perform virtually any operation that can be accomplished in
  * a .Net application within the context of an Integration Services control flow. 

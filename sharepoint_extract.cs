@@ -94,7 +94,7 @@ namespace ST_ca3ecad38994454dbf5c83efe2dfa1d8
 
             using (var fileInfo = Microsoft.SharePoint.Client.File.OpenBinaryDirect(ctx, fileUrl))
             {
-                //Directory.CreateDirectory(targetPath);
+                System.IO.Directory.CreateDirectory(targetFile.Substring(0, targetFile.LastIndexOf('\\')));
                 //var fileName = Path.Combine(targetPath, Path.GetFileName(fileUrl));
                 using (var fileStream = System.IO.File.Create(targetFile))
                 {

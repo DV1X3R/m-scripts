@@ -93,7 +93,24 @@ namespace ST_ca3ecad38994454dbf5c83efe2dfa1d8
         private static void DownloadSpFile(Web web, string fileUrl, string targetFile)
         {
             var ctx = (ClientContext)web.Context;
-            ctx.ExecuteQuery();
+            
+            int retryCount = 20;
+            int delay = 2000;
+            bool done = false;
+
+            while (!done)
+            {
+                try { ctx.ExecuteQuery(); done = true; }
+                catch (System.Net.WebException)
+                {
+                    if (retryCount > 0)
+                    {
+                        retryCount--;
+                        System.Threading.Thread.Sleep(delay);
+                    }
+                    else throw;
+                }
+            }
 
             using (var fileInfo = Microsoft.SharePoint.Client.File.OpenBinaryDirect(ctx, fileUrl))
             {

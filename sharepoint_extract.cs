@@ -22,7 +22,7 @@ namespace ST_
                 }
                 catch (WebException e)
                 {
-                    if (((e.Response as HttpWebResponse).StatusCode != (HttpStatusCode)503) || (retryAttempts > 0))
+                    if (((e.Response as HttpWebResponse).StatusCode == (HttpStatusCode)503) && (retryAttempts > 0))
                     {
                         retryAttempts--;
                         System.Threading.Thread.Sleep(delayBetweenRetriesMs);

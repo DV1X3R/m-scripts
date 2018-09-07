@@ -1,22 +1,106 @@
-// https://www.microsoft.com/en-us/download/details.aspx?id=42038
-	// This SDK is required!
-
-#region Help:  Introduction to the script task
-/* The Script Task allows you to perform virtually any operation that can be accomplished in
- * a .Net application within the context of an Integration Services control flow. 
- * 
- * Expand the other regions which have "Help" prefixes for examples of specific ways to use
- * Integration Services features within this script task. */
-#endregion
-
-
 #region Namespaces
 using System;
+using System.Net;
+using System.Linq;
+using System.Collections.Generic;
 using Microsoft.SharePoint.Client;
 #endregion
 
-namespace ST_ca3ecad38994454dbf5c83efe2dfa1d8
+namespace ST_
 {
+    static class SpExtensions
+    {
+        // Extension method to handle random 503 error
+        public static void ExecuteQueryR(this ClientContext clientContext, int retryAttempts, int delayBetweenRetriesMs)
+        {
+            while (true)
+            {
+                try
+                {
+                    clientContext.ExecuteQuery();
+                    return;
+                }
+                catch (WebException e)
+                {
+                    if (((e.Response as HttpWebResponse).StatusCode != (HttpStatusCode)503) || (retryAttempts > 0))
+                    {
+                        retryAttempts--;
+                        System.Threading.Thread.Sleep(delayBetweenRetriesMs);
+                    }
+                    else throw;
+                }
+            }
+        }
+    }
+
+    static class SpUtils
+    {
+        private static Uri GetPortalUri(string sourceUrl)
+        {
+            return new Uri(sourceUrl.Substring(0, sourceUrl.IndexOf("sharepoint.com/") + 15));
+        }
+
+        private static string GetSpFileRelativePath(string sourceUrl)
+        {
+            int portalLength = sourceUrl.IndexOf("sharepoint.com/") + 15;
+            return "/" + sourceUrl.Substring(portalLength, sourceUrl.Length - portalLength);
+        }
+
+        private static ClientContext GetSpContext(Uri uri, string userName, string password)
+        {
+            var securePassword = new System.Security.SecureString();
+            foreach (var ch in password) securePassword.AppendChar(ch);
+            return new ClientContext(uri) { Credentials = new SharePointOnlineCredentials(userName, securePassword) };
+        }
+
+        public static void DownloadSpFile(string userName, string password, string fileUrl, string targetFilePath, int retryAttempts, int delayBetweenRetriesMs)
+        {
+            using (var clientContext = GetSpContext(GetPortalUri(fileUrl), userName, password))
+            {
+                clientContext.ExecuteQueryR(retryAttempts, delayBetweenRetriesMs);
+                using (var fileInfo = Microsoft.SharePoint.Client.File.OpenBinaryDirect(clientContext, GetSpFileRelativePath(fileUrl)))
+                {
+                    System.IO.Directory.CreateDirectory(targetFilePath.Substring(0, targetFilePath.LastIndexOf('\\')));
+                    using (var fileStream = System.IO.File.Create(targetFilePath))
+                    {
+                        fileInfo.Stream.CopyTo(fileStream);
+                    }
+                }
+            }
+        }
+
+        public static void DownloadLatestSpFileFromFolder(string userName, string password, string folderUrl, string targetFilePath, int retryAttempts, int delayBetweenRetriesMs)
+        {
+            var filesInFolder = new List<string>();
+
+            // populate 'filesInFolder' list
+            using (var clientContext = GetSpContext(new Uri(folderUrl), userName, password))
+            {
+                var documents = clientContext.Web.Lists.GetByTitle("Documents");
+                clientContext.Load(documents.RootFolder.Folders);
+                clientContext.ExecuteQueryR(retryAttempts, delayBetweenRetriesMs);
+
+                foreach (var documentsFolder in documents.RootFolder.Folders)
+                {
+                    if (documentsFolder.Name == "General")
+                    {
+                        clientContext.Load(documentsFolder.Files);
+                        clientContext.ExecuteQueryR(retryAttempts, delayBetweenRetriesMs);
+
+                        foreach (var file in documentsFolder.Files)
+                        {
+                            filesInFolder.Add(file.Name);
+                        }
+                    }
+                }
+            }
+
+            // download the latest file
+            var fileUrl = folderUrl + "/Shared Documents/General/" + filesInFolder.OrderBy(x => x).Last();
+            DownloadSpFile(userName, password, fileUrl, targetFilePath, retryAttempts, delayBetweenRetriesMs);
+        }
+    }
+
     /// <summary>
     /// ScriptMain is the entry point class of the script.  Do not change the name, attributes,
     /// or parent of this class.
@@ -83,46 +167,6 @@ namespace ST_ca3ecad38994454dbf5c83efe2dfa1d8
          * */
         #endregion
 
-        private static ClientContext GetSpContext(Uri portalUrl, string userName, string password)
-        {
-            var securePassword = new System.Security.SecureString();
-            foreach (var ch in password) securePassword.AppendChar(ch);
-            return new ClientContext(portalUrl) { Credentials = new SharePointOnlineCredentials(userName, securePassword) };
-        }
-
-        private static void DownloadSpFile(Web web, string fileUrl, string targetFile)
-        {
-            var ctx = (ClientContext)web.Context;
-            
-            int retryCount = 20;
-            int delay = 2000;
-            bool done = false;
-
-            while (!done)
-            {
-                try { ctx.ExecuteQuery(); done = true; }
-                catch (System.Net.WebException)
-                {
-                    if (retryCount > 0)
-                    {
-                        retryCount--;
-                        System.Threading.Thread.Sleep(delay);
-                    }
-                    else throw;
-                }
-            }
-
-            using (var fileInfo = Microsoft.SharePoint.Client.File.OpenBinaryDirect(ctx, fileUrl))
-            {
-                System.IO.Directory.CreateDirectory(targetFile.Substring(0, targetFile.LastIndexOf('\\')));
-                //var fileName = Path.Combine(targetPath, Path.GetFileName(fileUrl));
-                using (var fileStream = System.IO.File.Create(targetFile))
-                {
-                    fileInfo.Stream.CopyTo(fileStream);
-                }
-            }
-        }
-
         /// <summary>
         /// This method is called when this script task executes in the control flow.
         /// Before returning from this method, set the value of Dts.TaskResult to indicate success or failure.
@@ -133,30 +177,18 @@ namespace ST_ca3ecad38994454dbf5c83efe2dfa1d8
             // TODO: Add your code here
             string userName = Dts.Variables["$Project::MAIL_AO365"].Value.ToString();
             string password = Dts.Variables["$Project::PASSWORD_AO365"].Value.ToString();
-            string sourceUrl = Dts.Variables["$Project::Sharepoint_Link"].Value.ToString();
-            string targetFile = Dts.Variables["$Project::FlatFile_Path"].Value.ToString();
+            string sourceUrl = Dts.Variables["User::Sharepoint_Source_Link"].Value.ToString();
+            string targetFilePath = Dts.Variables["User::Sharepoint_Destination_File"].Value.ToString();
 
-            int portalIndex = sourceUrl.IndexOf("sharepoint.com/") + 15;
-            string portalUrl = sourceUrl.Substring(0, portalIndex);
-            string fileUrl = "/" + sourceUrl.Substring(portalIndex, sourceUrl.Length - portalUrl.Length);
-
-            using (var ctx = GetSpContext(new Uri(portalUrl), userName, password))
+            try
             {
-                var web = ctx.Web;
-                try
-                {
-                    DownloadSpFile(web, fileUrl, targetFile);
-                    Dts.Variables["User::Sharepoint_Success"].Value = true;
-                }
-                catch (Exception e)
-                {
-                    //Console.WriteLine(e.Message); Console.ReadLine();
-                    Dts.Variables["User::Sharepoint_Error_Message"].Value = e.Message;
-                    Dts.Variables["User::Sharepoint_Success"].Value = false;
-                }
-                //catch (IdcrlException e) { } // Credentials error
-                //catch (System.Net.WebException e) { } // 404 file not found
-                //catch (UnauthorizedAccessException e) { } // File write error
+                SpUtils.DownloadSpFile(userName, password, sourceUrl, targetFilePath, 20, 2000);
+                Dts.Variables["User::Sharepoint_Success"].Value = true;
+            }
+            catch (Exception e)
+            {
+                Dts.Variables["User::Sharepoint_Error_Message"].Value = e.Message;
+                Dts.Variables["User::Sharepoint_Success"].Value = false;
             }
 
             Dts.TaskResult = (int)ScriptResults.Success;

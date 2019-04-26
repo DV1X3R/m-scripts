@@ -138,7 +138,7 @@ public class ScriptMain : UserComponent
             foreach (DataRow tabs in connection.GetSchema("Tables").Rows)
             {
                 string tabName = tabs["TABLE_NAME"].ToString();
-                if (!tabName.Contains("$Print_Area"))
+                if (!tabName.Contains("Print_Area"))
                 {
                     tabList.Add(tabName.Replace("$", "").Replace("'", ""));
                 }

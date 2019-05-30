@@ -1,7 +1,7 @@
 $workingDir = '%teamcity.build.workingDir%'
 $ssisDir = 'SSIS\'
 $ssasDir = 'SSAS\'
-#$author = 'Author'
+#$authors = 'Author'
 
 foreach ($asdatabase in (Get-ChildItem -Recurse -Path $ssasDir -Include "*.asdatabase")) {
     [xml]$nuspec = '<?xml version="1.0" encoding="utf-8"?>
@@ -9,7 +9,7 @@ foreach ($asdatabase in (Get-ChildItem -Recurse -Path $ssasDir -Include "*.asdat
       <metadata>
         <id></id>
         <version>$version$</version>
-        <authors>$author</authors>
+        <authors></authors>
         <requireLicenseAcceptance>false</requireLicenseAcceptance>
         <description>NuGet package generated automatically</description>
       </metadata>
@@ -17,6 +17,7 @@ foreach ($asdatabase in (Get-ChildItem -Recurse -Path $ssasDir -Include "*.asdat
     </package>'
 
     $nuspec.package.metadata.id = "SSAS." + $asdatabase.BaseName
+    $nuspec.package.metadata.authors = $authors
 
     $asdatabaseBasePath = ($asdatabase | Resolve-Path -Relative | Split-Path) + "\" + $asdatabase.BaseName
 
@@ -44,7 +45,7 @@ foreach ($ispac in (Get-ChildItem -Recurse -Path $ssisDir -Include "*.ispac")) {
       <metadata>
         <id></id>
         <version>$version$</version>
-        <authors>$author</authors>
+        <authors></authors>
         <requireLicenseAcceptance>false</requireLicenseAcceptance>
         <description>NuGet package generated automatically</description>
       </metadata>
@@ -52,6 +53,7 @@ foreach ($ispac in (Get-ChildItem -Recurse -Path $ssisDir -Include "*.ispac")) {
     </package>'
     
     $nuspec.package.metadata.id = "SSIS." + $ispac.BaseName
+    $nuspec.package.metadata.authors = $authors
 
     $file = $nuspec.CreateElement('file')
     $file.SetAttribute('src', ($ispac | Resolve-Path -Relative))

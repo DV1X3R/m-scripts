@@ -17,7 +17,7 @@ foreach ($asdatabase in (Get-ChildItem -Recurse -Path $ssasDir -Include "*.asdat
     </package>'
 
     $nuspec.package.metadata.id = "SSAS." + $asdatabase.BaseName
-    $nuspec.package.metadata.authors = $authors
+    $nuspec.package.metadata.authors = "$authors"
 
     $asdatabaseBasePath = ($asdatabase | Resolve-Path -Relative | Split-Path) + "\" + $asdatabase.BaseName
 
@@ -53,7 +53,7 @@ foreach ($ispac in (Get-ChildItem -Recurse -Path $ssisDir -Include "*.ispac")) {
     </package>'
     
     $nuspec.package.metadata.id = "SSIS." + $ispac.BaseName
-    $nuspec.package.metadata.authors = $authors
+    $nuspec.package.metadata.authors = "$authors"
 
     $file = $nuspec.CreateElement('file')
     $file.SetAttribute('src', ($ispac | Resolve-Path -Relative))

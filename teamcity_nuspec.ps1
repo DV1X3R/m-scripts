@@ -36,7 +36,7 @@ foreach ($asdatabase in (Get-ChildItem -Recurse -Path $ssasDir -Include "*.asdat
     $file.SetAttribute('target', $asdatabase.BaseName + ".deploymenttargets")
     $nuspec.package.files.AppendChild($file)
     
-    $nuspec.save($workingDir + '\' + $asdatabase.BaseName + '.nuspec')
+    $nuspec.save($workingDir + '\SSAS.' + $asdatabase.BaseName + '.nuspec')
 }
 
 foreach ($ispac in (Get-ChildItem -Recurse -Path $ssisDir -Include "*.ispac")) {
@@ -60,5 +60,5 @@ foreach ($ispac in (Get-ChildItem -Recurse -Path $ssisDir -Include "*.ispac")) {
     $file.SetAttribute('target', $ispac.Name)
     $nuspec.package.files.AppendChild($file)
 
-    $nuspec.save($workingDir + '\' + $ispac.BaseName + '.nuspec')
+    $nuspec.save($workingDir + '\SSIS.' + $ispac.BaseName + '.nuspec')
 }

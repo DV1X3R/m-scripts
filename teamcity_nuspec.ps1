@@ -1,7 +1,10 @@
 $workingDir = '%teamcity.build.workingDir%'
 $ssisDir = 'SSIS\'
 $ssasDir = 'SSAS\'
-#$authors = 'Author'
+$ssrsDir = 'SSRS\'
+$authors = 'Authors'
+
+## SSAS ##
 
 foreach ($asdatabase in (Get-ChildItem -Recurse -Path $ssasDir -Include "*.asdatabase")) {
     [xml]$nuspec = '<?xml version="1.0" encoding="utf-8"?>
@@ -39,6 +42,8 @@ foreach ($asdatabase in (Get-ChildItem -Recurse -Path $ssasDir -Include "*.asdat
     $nuspec.save($workingDir + '\SSAS.' + $asdatabase.BaseName + '.nuspec')
 }
 
+## SSIS ##
+
 foreach ($ispac in (Get-ChildItem -Recurse -Path $ssisDir -Include "*.ispac")) {
     [xml]$nuspec = '<?xml version="1.0" encoding="utf-8"?>
     <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
@@ -62,3 +67,29 @@ foreach ($ispac in (Get-ChildItem -Recurse -Path $ssisDir -Include "*.ispac")) {
 
     $nuspec.save($workingDir + '\SSIS.' + $ispac.BaseName + '.nuspec')
 }
+
+## SSRS ##
+
+[xml]$nuspec = '<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+  <metadata>
+    <id></id>
+    <version>$version$</version>
+    <authors></authors>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>NuGet package generated automatically</description>
+  </metadata>
+  <files> <!-- PLEASE DO NOT REMOVE --> </files>
+</package>'
+
+$nuspec.package.metadata.id = "SSRS"
+$nuspec.package.metadata.authors = "$authors"
+
+foreach ($ssrs in (Get-ChildItem -Recurse -Path $ssrsDir -Include "*.rdl", "*.rds", "*.rsd", "*.rsc")) {
+    $file = $nuspec.CreateElement('file')
+    $file.SetAttribute('src', ($ssrs | Resolve-Path -Relative))
+    $file.SetAttribute('target', $ssrs.Name)
+    $nuspec.package.files.AppendChild($file)
+}
+
+$nuspec.save($workingDir + '\SSRS.nuspec')
